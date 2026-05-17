@@ -28,7 +28,7 @@ st.title("🤖 Digi-apuri vastaa")
 # Alustetaan tekoälymalli ja keskusteluhistoria Streamlitin muistiin
 if "model" not in st.session_state:
     st.session_state.model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-2.5-flash",
         system_instruction=SYSTEM_INSTRUCTION
     )
 if "chat" not in st.session_state:
