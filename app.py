@@ -1,58 +1,79 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. Haetaan API-avain turvallisesti Streamlitin salaisesta hallinnasta
-try:
-    api_key = st.secrets["GEMINI_KEY"]
-    genai.configure(api_key=api_key)
-except Exception:
+# Varmistetaan, että API-avain on tallessa
+if "GEMINI_KEY" not in st.secrets:
     st.error("API-avainta (GEMINI_KEY) ei löydetty järjestelmästä. Määritä se Streamlitin asetuksissa.")
     st.stop()
 
-# 2. Määritetään Digi-Sennin luonne ja ohjeet (System Instruction)
-SYSTEM_INSTRUCTION = """
-Olet "Digi-Senni", PC-Keisari-sivuston ystävällinen ja kärsivällinen tekoälyavustaja. 
-Tehtäväsi on auttaa ikäihmisiä (senioreita) heidän digitaalisissa ongelmissaan.
+genai.configure(api_key=st.secrets["GEMINI_KEY"])
 
-Noudata aina näitä sääntöjä vastauksissasi:
-1. Käytä selkeää, rauhallista ja kunnioittavaa suomen kieltä. Vältä nuorisoslangia.
-2. Älä käytä vaikeita tietoteknisiä termejä ilman, että selität ne heti selkeästi (esim. "Selain on ohjelma, jolla mennään nettisivuille, kuten Google").
-3. Anna ohjeet selkeinä numeroituina askeleina (esim. Vaihe 1, Vaihe 2). Älä koskaan sano vain "mene asetuksiin", vaan kerro mistä kuvakkeesta sinne pääsee.
-4. Jos käyttäjä kysyy jotain pankkitunnuksiin tai salasanojen luovuttamiseen liittyvää, varoita häntä heti huijauksista ja muistuta, ettei tunnuksia saa antaa kenellekään.
-5. Pidä vastaukset suhteellisen lyhyinä ja helposti luettavina, käytä tyhjiä rivivälejä asioiden välissä.
-"""
+# Alustetaan muuttujat, joilla pidetään kirjaa vitsimoodista
+if "vitsimoodi" not in st.session_state:
+    st.session_state.vitsimoodi = False
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-st.set_page_config(page_title="Digi-Apuri", page_icon="🤖")
-st.title("🤖 Digi-apuri vastaa")
+# TÄRKEÄÄ: Ohjeistetaan tekoäly tunnistamaan pelleily ja toimimaan sen mukaan
+ohjeet = (
+    "Olet PC-Keisarin Digi-Apuri, ystävällinen tekoälyavustaja ikäihmisille. "
+    "MUKAUTETTU SÄÄNTÖ: Jos huomaat, että käyttäjä pelleilee, vitsailee tyhmiä, "
+    "kyselee täysin asiaankuulumattomia (kuten 'onko kuu juustoa') tai yrittää muuten vain "
+    "testata sinua hölmöillä kysymyksillä, sinun TÄYTYY aloittaa vastauksesi lauseella: "
+    "'Pelleilet kanssani, annampa takaisin!' ja vastata sen jälkeen vitsillä, ironisesti tai hassusti takaisin. "
+    "Pysy kuitenkin kohteliaana."
+)
 
-# Alustetaan tekoälymalli ja keskusteluhistoria Streamlitin muistiin
-if "model" not in st.session_state:
-    st.session_state.model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
-        system_instruction=SYSTEM_INSTRUCTION
-    )
-if "chat" not in st.session_state:
-    st.session_state.chat = st.session_state.model.start_chat(history=[])
+model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=ohjeet)
 
-# Näytetään aiemmat viestit sivulla
-for message in st.session_state.chat.history:
-    role = "user" if message.role == "user" else "assistant"
-    with st.chat_message(role):
-        st.write(message.parts[0].text)
+st.title("🤖 Digi-Apuri")
 
-# Alkutervehdys, jos keskustelu on juuri alkanut
-if len(st.session_state.chat.history) == 0:
-    with st.chat_message("assistant"):
-        st.write("Tervehdys! Olen PC-Keisarin Digi-apuri. Miten voisin auttaa sinua tänään tietokoneen tai puhelimen kanssa?")
+# Näytetään vanhat viestit
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
 
-# Käyttäjän uusi kysymys
-if user_query := st.chat_input("Kirjoita kysymyksesi tähän..."):
-    # Näytetään käyttäjän teksti heti chätissä
+# Jos ollaan aktiivisessa vitsimoodissa, tarjotaan napit paluuseen
+if st.session_state.vitsimoodi:
+    st.warning("Digi-Apuri on vitsimoodissa. Palataanko oikeasti asiaan?")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("K (Kyllä, palaa asiaan)"):
+            st.session_state.vitsimoodi = False
+            st.session_state.messages.append({"role": "assistant", "content": "Selvä pyyhi! Palataanpa takaisin asialinjalle. Miten voin auttaa digiasioissa?"})
+            st.rerun()
+    with col2:
+        if st.button("E (Ei, jatketaan vitsillä)"):
+            st.write("Jatketaan siis pelleilyä! 😉")
+
+# Otetaan käyttäjän teksti vastaan
+if user_input := st.chat_input("Kirjoita viestisi tähän..."):
+    # Näytetään käyttäjän viesti
     with st.chat_message("user"):
-        st.write(user_query)
-        
-    # Pyydetään tekoälyltä vastaus
+        st.write(user_input)
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    
+    # Tarkistetaan jos käyttäjä vastasi suoraan tekstinä K/E vitsimoodissa
+    if st.session_state.vitsimoodi and user_input.strip().upper() in ["K", "KYLLÄ"]:
+        st.session_state.vitsimoodi = False
+        vastaus = "Selvä pyyhi! Palataanpa takaisin asialinjalle. Miten voin auttaa digiasioissa?"
+    else:
+        # Haetaan vastaus tekoälyltä
+        try:
+            response = model.generate_content(user_input)
+            vastaus = response.text
+            
+            # Jos tekoäly päätti herjata pelleilystä, kytketään vitsimoodi päälle muistiin
+            if "Pelleilet kanssani" in vastaus:
+                st.session_state.vitsimoodi = True
+                # Lisätään loppuun vaatimus paluusta
+                vastaus += "\n\n*Oikeasti, palataanko asiaan? (K/E)*"
+                
+        except Exception as e:
+            vastaus = "Hups, yhteys katkesi. Yritetäänpä uudelleen!"
+
+    # Näytetään tekoälyn vastaus
     with st.chat_message("assistant"):
-        with st.spinner("Digi-apuri miettii vastausta..."):
-            response = st.session_state.chat.send_message(user_query)
-            st.write(response.text)
+        st.write(vastaus)
+    st.session_state.messages.append({"role": "assistant", "content": vastaus})
+    st.rerun()
