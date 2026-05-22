@@ -43,7 +43,7 @@ if user_input := st.chat_input("Kirjoita viestisi..."):
     
     # KÄYTETÄÄN TÄTÄ MALLIA, SE ON VARMIN VAIHTOEHTO HAKUTOIMINNOLLA
     model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash',
+        model_name='gemini-2.5-flash',
         system_instruction=nykyiset_ohjeet,
         tools=[{"google_search_retrieval": {}}]
     )
