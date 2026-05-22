@@ -1,0 +1,53 @@
+name: Keep Streamlit Awake
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm install playwright
+          npx playwright install chromium
+
+      - name: Open Streamlit App
+        run: |
+          node -e "
+          const { chromium } = require('playwright');
+
+          (async () => {
+
+            const browser = await chromium.launch({
+              headless: true
+            });
+
+            const page = await browser.newPage();
+
+            await page.goto(
+              'https://digi-apuri-zgtcbjbyai9b7ovbpjlibx.streamlit.app/?embed=true',
+              {
+                waitUntil: 'networkidle',
+                timeout: 60000
+              }
+            );
+
+            console.log('Digi-apuri herätetty');
+
+            await browser.close();
+
+          })();
+          "
