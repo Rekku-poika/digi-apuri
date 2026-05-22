@@ -9,31 +9,21 @@ if "GEMINI_KEY" not in st.secrets:
 
 genai.configure(api_key=st.secrets["GEMINI_KEY"])
 
-# Päivämäärä kontekstiksi
 tanaan = datetime.date.today().strftime("%d.%m.%Y")
 
 # Järjestelmäohjeet
-ohjeet_normaali = (
-    f"Olet PC-Keisarin Digi-Apuri, ystävällinen digiohjaaja ikäihmisille. Tänään on {tanaan}. "
-    "Vastaa selkeästi ja rauhallisesti. Jos kysymys vaatii ajankohtaista tietoa, käytä Google-hakua."
-)
-
-ohjeet_pohjanmaa = (
-    f"Olet PC-Keisarin Digi-Apuri (pohojalainen huumorimoodi). Tänään on {tanaan}. "
-    "Puhu leveää etelä-pohjanmaan murretta. Käytä Google-hakua ajankohtaisiin asioihin."
-)
+ohjeet_normaali = f"Olet PC-Keisarin Digi-Apuri. Tänään on {tanaan}. Vastaa selkeästi."
+ohjeet_pohjanmaa = f"Olet PC-Keisarin Digi-Apuri (pohojalainen murre). Tänään on {tanaan}. Käytä Google-hakua."
 
 if "vitsimoodi" not in st.session_state: st.session_state.vitsimoodi = False
 if "messages" not in st.session_state: st.session_state.messages = []
 
 st.title("🤖 Digi-Apuri")
 
-# Viestihistoria
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# Käyttäjän syöte
 if user_input := st.chat_input("Kirjoita viestisi..."):
     with st.chat_message("user"):
         st.write(user_input)
@@ -41,11 +31,11 @@ if user_input := st.chat_input("Kirjoita viestisi..."):
     
     nykyiset_ohjeet = ohjeet_pohjanmaa if st.session_state.vitsimoodi else ohjeet_normaali
     
-    # TÄSSÄ ON KORJAUS: Käytetään google_search -työkalua
+    # Käytetään varmasti toimivaa mallia ja oikeaa työkalun määrittelyä
     model = genai.GenerativeModel(
-        model_name='gemini-2.5-flash', 
+        model_name='gemini-1.5-flash',
         system_instruction=nykyiset_ohjeet,
-        tools=[{"google_search": {}}]  # <-- Tämä on se oikea muutos
+        tools=[genai.types.Tool(function_declarations=[], google_search_retrieval=genai.types.GoogleSearchRetrieval())]
     )
     
     try:
