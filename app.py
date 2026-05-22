@@ -4,26 +4,48 @@ import datetime
 
 # Varmistetaan API-avain
 if "GEMINI_KEY" not in st.secrets:
-    st.error("API-avainta (GEMINI_KEY) ei löydetty.")
+    st.error("API-avainta (GEMINI_KEY) ei löydetty Streamlitin asetuksista.")
     st.stop()
 
 genai.configure(api_key=st.secrets["GEMINI_KEY"])
 
+# Päivämäärä kontekstiksi
 tanaan = datetime.date.today().strftime("%d.%m.%Y")
 
 # Järjestelmäohjeet
-ohjeet_normaali = f"Olet PC-Keisarin Digi-Apuri. Tänään on {tanaan}. Vastaa selkeästi."
-ohjeet_pohjanmaa = f"Olet PC-Keisarin Digi-Apuri (pohojalainen murre). Tänään on {tanaan}. Käytä Google-hakua."
+ohjeet_normaali = (
+    f"Olet PC-Keisarin Digi-Apuri, ystävällinen digiohjaaja ikäihmisille. Tänään on {tanaan}. "
+    "Vastaa selkeästi ja rauhallisesti. JOS kysymys vaatii ajankohtaista tietoa, KÄYTÄ Google-hakua. "
+    "Jos huomaat, että käyttäjä vitsailee, aloita vastauksesi: 'Pelleilet kanssani, vastataanpa sitte Pohjanmaan murteella!'"
+)
+
+ohjeet_pohjanmaa = (
+    f"Olet PC-Keisarin Digi-Apuri (pohojalainen huumorimoodi). Tänään on {tanaan}. "
+    "Puhu leveää etelä-pohjanmaan murretta. Käytä Google-hakua ajankohtaisiin asioihin. "
+    "Älä käytä d-kirjainta. Käytä murresanoja: moon, soot, son, kropsu, komia, pöyröö."
+)
 
 if "vitsimoodi" not in st.session_state: st.session_state.vitsimoodi = False
 if "messages" not in st.session_state: st.session_state.messages = []
 
 st.title("🤖 Digi-Apuri")
 
+# Näytetään vanhat viestit
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
+# Moodin hallinta
+if st.session_state.vitsimoodi:
+    st.warning("⚠️ Digi-Apuri on lukittu Pohojanmaan murteelle.")
+    col1, col2 = st.columns(2)
+    if col1.button("K (Palaa asialinjalle)"):
+        st.session_state.vitsimoodi = False
+        st.rerun()
+    if col2.button("E (Jatka murteella!)"):
+        st.rerun()
+
+# Käyttäjän syöte
 if user_input := st.chat_input("Kirjoita viestisi..."):
     with st.chat_message("user"):
         st.write(user_input)
@@ -31,11 +53,11 @@ if user_input := st.chat_input("Kirjoita viestisi..."):
     
     nykyiset_ohjeet = ohjeet_pohjanmaa if st.session_state.vitsimoodi else ohjeet_normaali
     
-    # Käytetään varmasti toimivaa mallia ja oikeaa työkalun määrittelyä
+    # Käytetään mallia ilman monimutkaisia tyyppimäärittelyjä
     model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash',
+        model_name='gemini-1.5-flash', 
         system_instruction=nykyiset_ohjeet,
-        tools=[genai.types.Tool(function_declarations=[], google_search_retrieval=genai.types.GoogleSearchRetrieval())]
+        tools=[{"google_search": {}}]
     )
     
     try:
@@ -43,7 +65,7 @@ if user_input := st.chat_input("Kirjoita viestisi..."):
         vastaus = response.text
         if "Pohjanmaan murteella" in vastaus: st.session_state.vitsimoodi = True
     except Exception as e:
-        vastaus = f"Virhe: {str(e)}"
+        vastaus = f"Hups, nyt joku lanka katkes (Virhe: {str(e)[:30]}). Kokeile uurestaan!"
 
     with st.chat_message("assistant"):
         st.write(vastaus)
