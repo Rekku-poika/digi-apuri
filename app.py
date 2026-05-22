@@ -1,42 +1,28 @@
 import streamlit as st
 import google.generativeai as genai
-import datetime
 
+# 1. Asetetaan sivu
+st.set_page_config(page_title="Mallien lista", page_icon="🤖")
+st.title("🤖 Mallien listaus")
+
+# 2. Varmistetaan että API-avain löytyy
 if "GEMINI_KEY" not in st.secrets:
-    st.error("API-avain puuttuu.")
+    st.error("Virhe: GEMINI_KEY puuttuu Streamlit Secretsistä.")
     st.stop()
 
-genai.configure(api_key=st.secrets["GEMINI_KEY"])
-tanaan = datetime.date.today().strftime("%d.%m.%Y")
+# 3. Konfiguroidaan Gemini
+try:
+    genai.configure(api_key=st.secrets["GEMINI_KEY"])
+    
+    # 4. Haetaan lista
+    st.write("Haetaan malleja palvelimelta...")
+    models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+    
+    # 5. Näytetään lista
+    st.success(f"Löytyi {len(models)} mallia:")
+    st.write(models)
+    
+    st.info("Kopioi yllä olevasta listasta se nimi, jota haluat käyttää, ja kerro se minulle!")
 
-# Käytetään mallia gemini-1.5-flash-001
-model = genai.GenerativeModel(model_name='gemini-1.5-flash-001')
-
-if "messages" not in st.session_state: st.session_state.messages = []
-
-st.title("🤖 Digi-Apuri")
-
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
-
-if user_input := st.chat_input("Kirjoita viestisi..."):
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.write(user_input)
-
-    try:
-        # Haku yhdellä rivillä, joka toimii varmimmin
-        response = model.generate_content(
-            user_input,
-            tools=["google_search_retrieval"]
-        )
-        vastaus = response.text
-    except Exception as e:
-        # Jos haku ei jostain syystä toimi, vastaa ilman sitä
-        vastaus = model.generate_content(user_input).text
-
-    with st.chat_message("assistant"):
-        st.write(vastaus)
-    st.session_state.messages.append({"role": "assistant", "content": vastaus})
-    st.rerun()
+except Exception as e:
+    st.error(f"Tapahtui virhe yhteydessä: {str(e)}")
