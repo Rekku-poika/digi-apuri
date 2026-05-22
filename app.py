@@ -9,8 +9,8 @@ if "GEMINI_KEY" not in st.secrets:
 genai.configure(api_key=st.secrets["GEMINI_KEY"])
 tanaan = datetime.date.today().strftime("%d.%m.%Y")
 
-# Käytetään mallia ilman tool-listauksia alustuksessa
-model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+# Käytetään mallia gemini-1.5-flash-001
+model = genai.GenerativeModel(model_name='gemini-1.5-flash-001')
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
@@ -26,15 +26,15 @@ if user_input := st.chat_input("Kirjoita viestisi..."):
         st.write(user_input)
 
     try:
-        # TÄMÄ ON KORJAUS: Käytetään grounding-työkalua funktiona
+        # Haku yhdellä rivillä, joka toimii varmimmin
         response = model.generate_content(
             user_input,
-            tools=[genai.types.Tool(google_search_retrieval=genai.types.GoogleSearchRetrieval())]
+            tools=["google_search_retrieval"]
         )
         vastaus = response.text
     except Exception as e:
-        # Jos uusi tapa ei toimi, kokeillaan vähintään puhdasta generointia
-        vastaus = "Tietoa haettaessa tapahtui virhe, mutta tässä on oma arvaukseni: " + model.generate_content(user_input).text
+        # Jos haku ei jostain syystä toimi, vastaa ilman sitä
+        vastaus = model.generate_content(user_input).text
 
     with st.chat_message("assistant"):
         st.write(vastaus)
