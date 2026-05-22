@@ -1,28 +1,44 @@
 import streamlit as st
 import google.generativeai as genai
+import datetime
 
-# 1. Asetetaan sivu
-st.set_page_config(page_title="Mallien lista", page_icon="🤖")
-st.title("🤖 Mallien listaus")
-
-# 2. Varmistetaan että API-avain löytyy
+# 1. Konfigurointi
 if "GEMINI_KEY" not in st.secrets:
-    st.error("Virhe: GEMINI_KEY puuttuu Streamlit Secretsistä.")
+    st.error("API-avain puuttuu.")
     st.stop()
 
-# 3. Konfiguroidaan Gemini
-try:
-    genai.configure(api_key=st.secrets["GEMINI_KEY"])
-    
-    # 4. Haetaan lista
-    st.write("Haetaan malleja palvelimelta...")
-    models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-    
-    # 5. Näytetään lista
-    st.success(f"Löytyi {len(models)} mallia:")
-    st.write(models)
-    
-    st.info("Kopioi yllä olevasta listasta se nimi, jota haluat käyttää, ja kerro se minulle!")
+genai.configure(api_key=st.secrets["GEMINI_KEY"])
 
-except Exception as e:
-    st.error(f"Tapahtui virhe yhteydessä: {str(e)}")
+# 2. Käytetään mallia gemini-3.5-flash (Uusin ja toimivin flash-malli)
+model = genai.GenerativeModel(model_name='models/gemini-3.5-flash')
+
+# 3. Chat-alustus
+if "messages" not in st.session_state: st.session_state.messages = []
+
+st.title("🤖 Digi-Apuri (2026)")
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
+
+# 4. Syöte ja Haku
+if user_input := st.chat_input("Kirjoita viestisi..."):
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.write(user_input)
+
+    # TÄSSÄ KORJAUS: Käytetään google_search -työkalua "tools"-listassa
+    # Tämä on vuoden 2026 standarditapa
+    try:
+        response = model.generate_content(
+            user_input,
+            tools=[{"google_search": {}}]
+        )
+        vastaus = response.text
+    except Exception as e:
+        vastaus = f"Pahoittelut, tekninen virhe: {str(e)}"
+
+    with st.chat_message("assistant"):
+        st.write(vastaus)
+    st.session_state.messages.append({"role": "assistant", "content": vastaus})
+    st.rerun()
